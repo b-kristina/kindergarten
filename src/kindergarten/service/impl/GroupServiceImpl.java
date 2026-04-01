@@ -18,6 +18,7 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     public Group createGroup(String name, int number) {
+        validateGroup(name, number, null);
         return groupRepository.save(new Group(0, name, number));
     }
 
@@ -34,6 +35,7 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     public Group updateGroup(int id, String name, int number) {
+        validateGroup(name, number, id);
         Group group = getGroupById(id);
         group.setName(name);
         group.setNumber(number);
@@ -48,5 +50,21 @@ public class GroupServiceImpl implements GroupService {
             childRepository.delete(child.getId());
         }
         groupRepository.delete(id);
+    }
+
+    @Override
+    public void validateGroup(String name, int number, Integer excludeId) {
+        List<Group> allGroups = groupRepository.findAll();
+        for (Group group : allGroups) {
+            if (excludeId != null && group.getId() == excludeId) {
+                continue;
+            }
+            if (group.getName().equalsIgnoreCase(name.trim())) {
+                throw new RuntimeException("Группа с названием \"" + name + "\" уже существует!");
+            }
+            if (group.getNumber() == number) {
+                throw new RuntimeException("Группа с номером " + number + " уже существует!");
+            }
+        }
     }
 }

@@ -9,4 +9,5 @@ public interface GroupService {
     List<Group> getAllGroups();
     Group updateGroup(int id, String name, int number);
     void deleteGroup(int id);
+    void validateGroup(String name, int number, Integer excludeId);
 }
