@@ -24,23 +24,27 @@ public class ShowGroupsCommand implements Command {
         }
 
         for (Group group : groups) {
-            System.out.println("\n=== Группа: " + group.getName() + " №" + group.getNumber()
-                    + " (ID: " + group.getId() + ") ===");
-
-            List<Child> children = childService.getChildrenByGroupId(group.getId());
-            if (children.isEmpty()) {
-                System.out.println("  (детей нет)");
-            } else {
-                for (Child child : children) {
-                    System.out.println("  [" + child.getId() + "] " + child.getFullName()
-                            + ", " + child.getAge() + " лет, пол: " + child.getGender());
-                }
-            }
+            displayGroupWithChildren(group);
         }
     }
 
     @Override
-    public String getDescription() {
-        return "Показать все группы с детьми";
+    public CommandType getType() {
+        return CommandType.SHOW_GROUPS;
+    }
+
+    private void displayGroupWithChildren(Group group) {
+        System.out.println("\n=== Группа: " + group.getName() + " №" + group.getNumber()
+                + " (ID: " + group.getId() + ") ===");
+
+        List<Child> children = childService.getChildrenByGroupId(group.getId());
+        if (children.isEmpty()) {
+            System.out.println("  (детей нет)");
+        } else {
+            for (Child child : children) {
+                System.out.println("  [" + child.getId() + "] " + child.getFullName()
+                        + ", " + child.getAge() + " лет, пол: " + child.getGender());
+            }
+        }
     }
 }

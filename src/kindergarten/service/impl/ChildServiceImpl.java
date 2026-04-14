@@ -17,11 +17,10 @@ public class ChildServiceImpl implements ChildService {
 
     @Override
     public Child createChild(String fullName, String gender, int age, Integer groupId) {
-        if (fullName == null || fullName.trim().isEmpty()) {
-            throw new RuntimeException("ФИО ребенка не может быть пустым!");
-        }
-        groupRepository.findById(groupId)
-                .orElseThrow(() -> new RuntimeException("Группа с ID " + groupId + " не найдена"));
+        validateFullName(fullName);
+        validateAge(age);
+        validateGroupExists(groupId);
+
         return childRepository.save(new Child(0, fullName.trim(), gender, age, groupId));
     }
 
@@ -43,9 +42,9 @@ public class ChildServiceImpl implements ChildService {
 
     @Override
     public Child updateChild(int id, String fullName, String gender, int age, Integer groupId) {
-        if (fullName == null || fullName.trim().isEmpty()) {
-            throw new RuntimeException("ФИО ребенка не может быть пустым!");
-        }
+        validateFullName(fullName);
+        validateAge(age);
+
         Child child = getChildById(id);
         child.setFullName(fullName.trim());
         child.setGender(gender);
@@ -58,5 +57,25 @@ public class ChildServiceImpl implements ChildService {
     @Override
     public void deleteChild(int id) {
         childRepository.delete(id);
+    }
+
+    private void validateFullName(String fullName) {
+        if (fullName == null || fullName.trim().isEmpty()) {
+            throw new RuntimeException("ФИО ребенка не может быть пустым!");
+        }
+    }
+
+    private void validateAge(int age) {
+        if (age <= 0) {
+            throw new RuntimeException("Возраст должен быть положительным!");
+        }
+    }
+
+    private void validateGroupExists(Integer groupId) {
+        if (groupId == null || groupId == 0) {
+            throw new RuntimeException("Группа не может быть пустой!");
+        }
+        groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Группа с ID " + groupId + " не найдена"));
     }
 }

@@ -10,8 +10,8 @@ public class ExitCommand implements Command {
     }
 
     @Override
-    public String getDescription() {
-        return "Выход";
+    public CommandType getType() {
+        return CommandType.EXIT;
     }
 
     public boolean isExitRequested() {

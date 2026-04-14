@@ -18,7 +18,10 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     public Group createGroup(String name, int number) {
-        validateGroup(name, number, null);
+        validateGroupName(name);
+        validateGroupNumber(number);
+        validateGroupUnique(name, number, null);
+
         return groupRepository.save(new Group(0, name, number));
     }
 
@@ -35,7 +38,10 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     public Group updateGroup(int id, String name, int number) {
-        validateGroup(name, number, id);
+        validateGroupName(name);
+        validateGroupNumber(number);
+        validateGroupUnique(name, number, id);
+
         Group group = getGroupById(id);
         group.setName(name);
         group.setNumber(number);
@@ -52,8 +58,19 @@ public class GroupServiceImpl implements GroupService {
         groupRepository.delete(id);
     }
 
-    @Override
-    public void validateGroup(String name, int number, Integer excludeId) {
+    private void validateGroupName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new RuntimeException("Название группы не может быть пустым!");
+        }
+    }
+
+    private void validateGroupNumber(int number) {
+        if (number <= 0) {
+            throw new RuntimeException("Номер группы должен быть положительным!");
+        }
+    }
+
+    private void validateGroupUnique(String name, int number, Integer excludeId) {
         List<Group> allGroups = groupRepository.findAll();
         for (Group group : allGroups) {
             if (excludeId != null && group.getId() == excludeId) {

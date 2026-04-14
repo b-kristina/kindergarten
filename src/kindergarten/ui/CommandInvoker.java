@@ -1,18 +1,19 @@
 package kindergarten.ui;
 
 import kindergarten.command.Command;
+import kindergarten.command.CommandType;
 import kindergarten.command.ExitCommand;
 
 import java.util.Map;
 import java.util.Scanner;
 
 public class CommandInvoker {
-    private final Map<Integer, Command> commands;
+    private final Map<CommandType, Command> commands;
     private final ConsoleMenu menu;
     private final Scanner scanner;
     private final ExitCommand exitCommand;
 
-    public CommandInvoker(Map<Integer, Command> commands, ExitCommand exitCommand) {
+    public CommandInvoker(Map<CommandType, Command> commands, ExitCommand exitCommand) {
         this.commands = commands;
         this.exitCommand = exitCommand;
         this.menu = new ConsoleMenu(commands);
@@ -25,16 +26,16 @@ public class CommandInvoker {
             menu.printMenu();
             String input = scanner.nextLine().trim();
 
-            try {
-                int commandKey = Integer.parseInt(input);
-                Command command = commands.get(commandKey);
-                if (command != null) {
-                    command.execute();
-                } else {
-                    System.out.println("Неверная команда.");
-                }
-            } catch (NumberFormatException e) {
-                System.out.println("Введите число!");
+            if (input.isEmpty()) {
+                System.out.println("Введите команду!");
+                continue;
+            }
+
+            Command command = menu.getCommandByKey(input);
+            if (command != null) {
+                command.execute();
+            } else {
+                System.out.println("Неверная команда. Введите одну из предложенных.");
             }
         }
     }

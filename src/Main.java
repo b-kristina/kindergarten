@@ -1,47 +1,30 @@
-import kindergarten.command.AddChildCommand;
-import kindergarten.command.AddGroupCommand;
-import kindergarten.command.DeleteGroupCommand;
-import kindergarten.command.ShowGroupsCommand;
-import kindergarten.command.DeleteChildCommand;
-import kindergarten.command.EditGroupCommand;
-import kindergarten.command.EditChildCommand;
-import kindergarten.command.ExitCommand;
 import kindergarten.command.Command;
-import kindergarten.repository.memory.InMemoryChildRepository;
-import kindergarten.repository.memory.InMemoryGroupRepository;
-import kindergarten.service.ChildService;
-import kindergarten.service.GroupService;
-import kindergarten.service.impl.ChildServiceImpl;
-import kindergarten.service.impl.GroupServiceImpl;
-import kindergarten.ui.CommandInvoker;
+import kindergarten.command.CommandType;
+import kindergarten.command.ExitCommand;
+import kindergarten.factory.CommandFactory;
+import kindergarten.factory.RepositoryFactory;
+import kindergarten.factory.ServiceFactory;
 import kindergarten.repository.ChildRepository;
 import kindergarten.repository.GroupRepository;
-
-import java.util.HashMap;
+import kindergarten.service.ChildService;
+import kindergarten.service.GroupService;
+import kindergarten.ui.CommandInvoker;
 import java.util.Map;
 import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
-        GroupRepository groupRepository = new InMemoryGroupRepository();
-        ChildRepository childRepository = new InMemoryChildRepository();
+        GroupRepository groupRepository = RepositoryFactory.createGroupRepository();
+        ChildRepository childRepository = RepositoryFactory.createChildRepository();
 
-        GroupService groupService = new GroupServiceImpl(groupRepository, childRepository);
-        ChildService childService = new ChildServiceImpl(childRepository, groupRepository);
+        GroupService groupService = ServiceFactory.createGroupService(groupRepository, childRepository);
+        ChildService childService = ServiceFactory.createChildService(childRepository, groupRepository);
 
         Scanner scanner = new Scanner(System.in);
+        Map<CommandType, Command> commands = CommandFactory.createCommands(
+                groupService, childService, scanner);
 
-        Map<Integer, Command> commands = new HashMap<>();
-        commands.put(1, new AddGroupCommand(groupService, scanner));
-        commands.put(2, new AddChildCommand(childService, groupService, scanner));
-        commands.put(3, new ShowGroupsCommand(groupService, childService));
-        commands.put(4, new DeleteGroupCommand(groupService, childService, scanner));
-        commands.put(5, new DeleteChildCommand(childService, groupService, scanner));
-        commands.put(6, new EditGroupCommand(groupService, scanner));
-        commands.put(7, new EditChildCommand(childService, groupService, scanner));
-
-        ExitCommand exitCommand = new ExitCommand();
-        commands.put(0, exitCommand);
+        ExitCommand exitCommand = (ExitCommand) commands.get(CommandType.EXIT);
 
         CommandInvoker invoker = new CommandInvoker(commands, exitCommand);
         invoker.start();

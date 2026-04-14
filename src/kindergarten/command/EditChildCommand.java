@@ -5,6 +5,7 @@ import kindergarten.model.Group;
 import kindergarten.service.ChildService;
 import kindergarten.service.GroupService;
 import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
 
 public class EditChildCommand implements Command {
@@ -20,94 +21,181 @@ public class EditChildCommand implements Command {
 
     @Override
     public void execute() {
-        List<Child> children = childService.getAllChildren();
-        if (children.isEmpty()) {
-            System.out.println("Детей для редактирования нет.");
+        if (!hasAvailableChildren()) {
             return;
         }
 
+        Optional<Integer> childIdOpt = selectChildId();
+        if (childIdOpt.isEmpty()) {
+            return;
+        }
+
+        ChildInputData inputData = readChildInputData();
+        if (inputData == null) {
+            return;
+        }
+
+        Optional<Integer> groupIdOpt = selectGroupId();
+        if (groupIdOpt.isEmpty()) {
+            return;
+        }
+
+        saveChild(childIdOpt.get(), inputData, groupIdOpt.get());
+    }
+
+    @Override
+    public CommandType getType() {
+        return CommandType.EDIT_CHILD;
+    }
+
+    private boolean hasAvailableChildren() {
+        List<Child> children = childService.getAllChildren();
+        if (children.isEmpty()) {
+            System.out.println("Детей для редактирования нет.");
+            return false;
+        }
+        displayChildrenList();
+        return true;
+    }
+
+    private void displayChildrenList() {
         System.out.println("\n--- Доступные дети ---");
-        for (Child child : children) {
+        for (Child child : childService.getAllChildren()) {
             String groupName = getGroupName(child.getGroupId());
             System.out.println("  [" + child.getId() + "] " + child.getFullName()
                     + ", " + child.getAge() + " лет, пол: " + child.getGender()
                     + " | Группа: " + groupName);
         }
+    }
 
+    private Optional<Integer> selectChildId() {
         System.out.print("\nВведите ID ребенка для редактирования: ");
-        int id;
-        try {
-            id = Integer.parseInt(scanner.nextLine());
-        } catch (NumberFormatException e) {
+        String input = scanner.nextLine().trim();
+
+        if (!isValidInteger(input)) {
             System.out.println("Неверный формат ID!");
-            return;
+            return Optional.empty();
         }
 
+        return Optional.of(Integer.parseInt(input));
+    }
+
+    private ChildInputData readChildInputData() {
+        String fullName = readFullName();
+        if (fullName == null) {
+            return null;
+        }
+
+        String gender = readGender();
+        if (gender == null) {
+            return null;
+        }
+
+        Integer age = readAge();
+        if (age == null) {
+            return null;
+        }
+
+        return new ChildInputData(fullName, gender, age);
+    }
+
+    private String readFullName() {
         System.out.print("Новое ФИО: ");
         String fullName = scanner.nextLine().trim();
 
         if (fullName.isEmpty()) {
             System.out.println("ФИО не может быть пустым!");
-            return;
+            return null;
         }
+        return fullName;
+    }
 
-        String gender = selectGender();
+    private String readGender() {
+        System.out.println("Выберите пол:");
+        System.out.println("  М — мужской");
+        System.out.println("  Ж — женский");
 
+        boolean validInput = false;
+        String gender = null;
+
+        do {
+            System.out.print("Ваш выбор (М или Ж): ");
+            String choice = scanner.nextLine().trim().toUpperCase();
+
+            if ("М".equals(choice) || "M".equals(choice)) {
+                gender = "М";
+                validInput = true;
+            } else if ("Ж".equals(choice) || "F".equals(choice)) {
+                gender = "Ж";
+                validInput = true;
+            } else {
+                System.out.println("Неверный выбор. Введите М или Ж.");
+            }
+        } while (!validInput);
+
+        return gender;
+    }
+
+    private Integer readAge() {
         System.out.print("Новый возраст: ");
-        int age;
-        try {
-            age = Integer.parseInt(scanner.nextLine());
-        } catch (NumberFormatException e) {
+        String input = scanner.nextLine().trim();
+
+        if (!isValidInteger(input)) {
             System.out.println("Неверный формат возраста!");
-            return;
+            return null;
         }
 
+        return Integer.parseInt(input);
+    }
+
+    private Optional<Integer> selectGroupId() {
         List<Group> groups = groupService.getAllGroups();
-        int groupId = 0;
-        if (!groups.isEmpty()) {
-            System.out.println("\n--- Выберите новую группу ---");
-            for (Group group : groups) {
-                System.out.println("  [" + group.getId() + "] " + group.getName()
-                        + " №" + group.getNumber());
-            }
-            System.out.print("Введите ID группы (0 - без группы): ");
-            String groupInput = scanner.nextLine();
-            try {
-                groupId = Integer.parseInt(groupInput);
-                if (groupId != 0) {
-                    groupService.getGroupById(groupId);
-                }
-            } catch (NumberFormatException e) {
-                System.out.println("Неверный формат ID!");
-                return;
-            } catch (RuntimeException e) {
-                System.out.println("Группа с таким ID не найдена!");
-                return;
-            }
+        if (groups.isEmpty()) {
+            System.out.println("Групп нет, ребенок останется без группы.");
+            return Optional.of(0);
         }
 
-        try {
-            childService.updateChild(id, fullName, gender, age, groupId);
-            System.out.println("Ребенок обновлен!");
-        } catch (RuntimeException e) {
-            System.out.println("Ошибка: " + e.getMessage());
+        displayGroupsList();
+        System.out.print("Введите ID группы (0 - без группы): ");
+        String groupInput = scanner.nextLine().trim();
+
+        if (!isValidInteger(groupInput)) {
+            System.out.println("Неверный формат ID!");
+            return Optional.empty();
+        }
+
+        int groupId = Integer.parseInt(groupInput);
+        if (groupId != 0 && !isGroupExists(groupId)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(groupId);
+    }
+
+    private void displayGroupsList() {
+        System.out.println("\n--- Выберите новую группу ---");
+        for (Group group : groupService.getAllGroups()) {
+            System.out.println("  [" + group.getId() + "] "
+                    + group.getName() + " №" + group.getNumber());
         }
     }
 
-    private String selectGender() {
-        while (true) {
-            System.out.println("Выберите пол:");
-            System.out.println("  1. М (мужской)");
-            System.out.println("  2. Ж (женский)");
-            System.out.print("Ваш выбор (1 или 2): ");
-            String choice = scanner.nextLine().trim();
-            if ("1".equals(choice)) {
-                return "М";
-            } else if ("2".equals(choice)) {
-                return "Ж";
-            } else {
-                System.out.println("Неверный выбор. Попробуйте снова.");
-            }
+    private boolean isGroupExists(int groupId) {
+        try {
+            groupService.getGroupById(groupId);
+            return true;
+        } catch (RuntimeException e) {
+            System.out.println("Группа с таким ID не найдена!");
+            return false;
+        }
+    }
+
+    private boolean isValidInteger(String input) {
+        try {
+            Integer.parseInt(input);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 
@@ -123,8 +211,24 @@ public class EditChildCommand implements Command {
         }
     }
 
-    @Override
-    public String getDescription() {
-        return "Редактировать ребенка";
+    private void saveChild(int childId, ChildInputData inputData, int groupId) {
+        try {
+            childService.updateChild(childId, inputData.fullName, inputData.gender, inputData.age, groupId);
+            System.out.println("Ребенок обновлен!");
+        } catch (RuntimeException e) {
+            System.out.println("Ошибка: " + e.getMessage());
+        }
+    }
+
+    private static class ChildInputData {
+        private final String fullName;
+        private final String gender;
+        private final int age;
+
+        public ChildInputData(String fullName, String gender, int age) {
+            this.fullName = fullName;
+            this.gender = gender;
+            this.age = age;
+        }
     }
 }
