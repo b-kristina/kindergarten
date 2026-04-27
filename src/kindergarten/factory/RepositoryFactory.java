@@ -2,16 +2,17 @@ package kindergarten.factory;
 
 import kindergarten.repository.ChildRepository;
 import kindergarten.repository.GroupRepository;
-import kindergarten.repository.memory.InMemoryChildRepository;
-import kindergarten.repository.memory.InMemoryGroupRepository;
+import kindergarten.repository.jdbc.DatabaseConnectionProvider;
+import kindergarten.repository.jdbc.JdbcChildRepository;
+import kindergarten.repository.jdbc.JdbcGroupRepository;
 
 public class RepositoryFactory {
 
-    public static GroupRepository createGroupRepository() {
-        return new InMemoryGroupRepository();
+    public static GroupRepository createGroupRepository(DatabaseConnectionProvider provider) {
+        return new JdbcGroupRepository(provider);
     }
 
-    public static ChildRepository createChildRepository() {
-        return new InMemoryChildRepository();
+    public static ChildRepository createChildRepository(DatabaseConnectionProvider provider) {
+        return new JdbcChildRepository(provider);
     }
 }
