@@ -1,56 +1,57 @@
 package kindergarten.controller;
 
 import kindergarten.web.AppContext;
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 public abstract class BaseServlet extends HttpServlet {
+
+    protected static final String PATH_CHILDREN = "/children";
+    protected static final String PATH_CHILDREN_NEW = "/children/new";
+    protected static final String PATH_CHILDREN_EDIT = "/children/edit";
+    protected static final String PATH_CHILDREN_SAVE = "/children/save";
+    protected static final String PATH_CHILDREN_DELETE = "/children/delete";
+
+    protected static final String PATH_GROUPS = "/groups";
+    protected static final String PATH_GROUPS_NEW = "/groups/new";
+    protected static final String PATH_GROUPS_EDIT = "/groups/edit";
+    protected static final String PATH_GROUPS_SAVE = "/groups/save";
+
     protected AppContext appContext(HttpServletRequest request) {
-        javax.servlet.ServletContext servletContext = request.getServletContext();
-        Object attribute = servletContext.getAttribute(AppContext.ATTRIBUTE_NAME);
-        if (attribute instanceof AppContext appContext) {
-            return appContext;
+        AppContext ctx = (AppContext) request.getServletContext()
+                .getAttribute(AppContext.ATTRIBUTE_NAME);
+
+        if (ctx == null) {
+            throw new IllegalStateException("AppContext not initialized");
         }
 
-        synchronized (servletContext) {
-            attribute = servletContext.getAttribute(AppContext.ATTRIBUTE_NAME);
-            if (attribute instanceof AppContext appContext) {
-                return appContext;
-            }
-
-            try {
-                AppContext appContext = AppContext.create();
-                servletContext.setAttribute(AppContext.ATTRIBUTE_NAME, appContext);
-                servletContext.removeAttribute(AppContext.ATTRIBUTE_NAME + ".error");
-                return appContext;
-            } catch (RuntimeException e) {
-                servletContext.setAttribute(AppContext.ATTRIBUTE_NAME + ".error", e);
-                throw e;
-            }
-        }
+        return ctx;
     }
 
-    protected void forward(HttpServletRequest request, HttpServletResponse response, String view) throws IOException {
+    protected void forward(HttpServletRequest request, HttpServletResponse response, String view)
+            throws IOException {
         try {
             request.getRequestDispatcher(view).forward(request, response);
         } catch (ServletException e) {
-            throw new IOException(e);
+            throw new IOException("Forward failed: " + view, e);
         }
     }
 
-    protected void redirect(HttpServletRequest request, HttpServletResponse response, String path) throws IOException {
+    protected void redirect(HttpServletRequest request, HttpServletResponse response, String path)
+            throws IOException {
         response.sendRedirect(request.getContextPath() + path);
     }
 
-    protected void redirectWithParams(HttpServletRequest request, HttpServletResponse response, String path, Map<String, String> params) throws IOException {
+    protected void redirectWithParams(HttpServletRequest request, HttpServletResponse response,
+                                      String path, Map<String, String> params) throws IOException {
+
         StringBuilder url = new StringBuilder(request.getContextPath()).append(path);
         boolean hasQuery = path.contains("?");
 
@@ -59,7 +60,6 @@ public abstract class BaseServlet extends HttpServlet {
             if (value == null || value.isBlank()) {
                 continue;
             }
-
             url.append(hasQuery ? '&' : '?');
             url.append(entry.getKey()).append('=').append(encodeUrl(value));
             hasQuery = true;
@@ -78,24 +78,14 @@ public abstract class BaseServlet extends HttpServlet {
         }
     }
 
-    protected void redirectToFormWithError(HttpServletRequest request, HttpServletResponse response, String path, String rawId, Map<String, String> params, String error) throws IOException {
+    protected void redirectToFormWithError(HttpServletRequest request, HttpServletResponse response,
+                                           String path, String rawId, Map<String, String> params, String error) throws IOException {
+
         if (rawId != null && !rawId.isBlank()) {
             params.put("id", rawId);
         }
-
         putQueryParam(params, "error", error);
         redirectWithParams(request, response, path, params);
-    }
-
-    protected String firstValidationError(List<Supplier<String>> validationRules) {
-        for (Supplier<String> validationRule : validationRules) {
-            String error = validationRule.get();
-            if (error != null) {
-                return error;
-            }
-        }
-
-        return null;
     }
 
     protected boolean isBlank(String value) {

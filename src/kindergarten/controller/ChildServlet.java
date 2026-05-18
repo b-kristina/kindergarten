@@ -1,99 +1,117 @@
 package kindergarten.controller;
 
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import kindergarten.service.ChildService;
+import kindergarten.web.AppContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class ChildServlet extends BaseServlet {
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        appContext(request);
-        String servletPath = request.getServletPath();
-        if ("/children".equals(servletPath)) {
-            forward(request, response, "/WEB-INF/views/children.jsp");
-            return;
-        }
+        String path = request.getServletPath();
 
-        if ("/children/new".equals(servletPath) || "/children/edit".equals(servletPath)) {
-            forward(request, response, "/WEB-INF/views/child-form.jsp");
-            return;
+        switch (path) {
+            case PATH_CHILDREN:
+                listChildren(request, response);
+                break;
+            case PATH_CHILDREN_NEW:
+                showNewForm(request, response);
+                break;
+            case PATH_CHILDREN_EDIT:
+                showEditForm(request, response);
+                break;
+            default:
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
-
-        response.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        if ("/children/save".equals(request.getServletPath())) {
-            saveChild(request, response);
-            return;
-        }
+        String path = request.getServletPath();
 
-        if ("/children/delete".equals(request.getServletPath())) {
-            deleteChild(request, response);
-            return;
+        switch (path) {
+            case PATH_CHILDREN_SAVE:
+                save(request, response);
+                break;
+            case PATH_CHILDREN_DELETE:
+                delete(request, response);
+                break;
+            default:
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
-
-        response.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
 
-    private void saveChild(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    private void listChildren(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        forward(request, response, "/WEB-INF/views/children.jsp");
+    }
+
+    private void showNewForm(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        forward(request, response, "/WEB-INF/views/child-form.jsp");
+    }
+
+    private void showEditForm(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String id = request.getParameter("id");
+        if (id == null || id.isBlank()) {
+            redirect(request, response, PATH_CHILDREN);
+            return;
+        }
+        forward(request, response, "/WEB-INF/views/child-form.jsp");
+    }
+
+    private void save(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String rawId = request.getParameter("id");
         String fullName = request.getParameter("fullName");
         String gender = request.getParameter("gender");
         String rawAge = request.getParameter("age");
         String rawGroupId = request.getParameter("groupId");
-        Integer age = parseInteger(request.getParameter("age"));
-        Integer groupId = parseInteger(rawGroupId);
-        Integer id = parseInteger(rawId);
-        boolean editMode = rawId != null && !rawId.isBlank();
 
-        String validationError = validateChildForm(editMode, id, fullName, gender, age, groupId);
-        if (validationError != null) {
+        boolean isEdit = rawId != null && !rawId.isBlank();
+
+        try {
+            ChildService service = appContext(request).getChildService();
+
+            if (isEdit) {
+                service.updateChild(
+                        parseInteger(rawId), fullName, gender,
+                        parseInteger(rawAge), parseInteger(rawGroupId)
+                );
+            } else {
+                service.createChild(fullName, gender, parseInteger(rawAge), parseInteger(rawGroupId));
+            }
+
+            redirect(request, response, PATH_CHILDREN);
+
+        } catch (RuntimeException e) {
             Map<String, String> params = new LinkedHashMap<>();
-            putQueryParam(params, "fullName", fullName);
-            putQueryParam(params, "gender", gender);
-            putQueryParam(params, "age", rawAge);
-            putQueryParam(params, "groupId", rawGroupId);
-            redirectToFormWithError(request, response, editMode ? "/children/edit" : "/children/new", rawId, params, validationError);
+            params.put("fullName", fullName);
+            params.put("gender", gender);
+            params.put("age", rawAge);
+            params.put("groupId", rawGroupId);
+
+            String formPath = isEdit ? PATH_CHILDREN_EDIT : PATH_CHILDREN_NEW;
+            redirectToFormWithError(request, response, formPath, rawId, params, e.getMessage());
+        }
+    }
+
+    private void delete(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String rawId = request.getParameter("id");
+
+        if (rawId == null || rawId.isBlank()) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
 
-        if (editMode) {
-            appContext(request).getChildService().updateChild(id, fullName, gender, age, groupId);
-        } else {
-            appContext(request).getChildService().createChild(fullName, gender, age, groupId);
-        }
-
-        redirect(request, response, "/children");
-    }
-
-    private String validateChildForm(boolean editMode, Integer id, String fullName, String gender, Integer age, Integer groupId) {
-        return firstValidationError(List.of(
-                () -> editMode && id == null ? "Неверные данные формы" : null,
-                () -> isBlank(fullName) ? "ФИО ребенка не может быть пустым" : null,
-                () -> isInvalidGender(gender) ? "Пол должен быть М или Ж" : null,
-                () -> age == null ? "Неверный возраст" : null,
-                () -> !editMode && groupId == null ? "Группа не может быть пустой" : null
-        ));
-    }
-
-    private boolean isInvalidGender(String gender) {
-        return !"М".equals(gender) && !"Ж".equals(gender);
-    }
-
-    private void deleteChild(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        Integer id = parseInteger(request.getParameter("id"));
+        Integer id = parseInteger(rawId);
         if (id == null) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Не указан ID ребенка");
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
 
         appContext(request).getChildService().deleteChild(id);
-        redirect(request, response, "/children");
+        redirect(request, response, PATH_CHILDREN);
     }
-
 }
