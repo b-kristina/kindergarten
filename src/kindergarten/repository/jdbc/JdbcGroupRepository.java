@@ -32,7 +32,9 @@ public class JdbcGroupRepository implements GroupRepository {
 
     @Override
     public Group save(Group entity) {
-        return (entity.getId() == 0) ? insert(entity) : updateEntity(entity);
+        return findById(entity.getId())
+                .map(existing -> updateEntity(entity))
+                .orElseGet(() -> insert(entity));
     }
 
     @Override
@@ -74,7 +76,7 @@ public class JdbcGroupRepository implements GroupRepository {
 
     @Override
     public void update(Group entity) {
-        save(entity);
+        updateEntity(entity);
     }
 
     private Group updateEntity(Group group) {

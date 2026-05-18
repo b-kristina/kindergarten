@@ -17,11 +17,17 @@ public class ChildServiceImpl implements ChildService {
 
     @Override
     public Child createChild(String fullName, String gender, int age, Integer groupId) {
-        validateFullName(fullName);
-        validateAge(age);
-        validateGroupExists(groupId);
+        validateChildInput(fullName, gender, age, groupId);
 
         return childRepository.save(new Child(0, fullName.trim(), gender, age, groupId));
+    }
+
+    @Override
+    public void validateChildInput(String fullName, String gender, int age, Integer groupId) {
+        validateFullName(fullName);
+        validateGender(gender);
+        validateAge(age);
+        validateGroupExists(groupId);
     }
 
     @Override
@@ -68,6 +74,12 @@ public class ChildServiceImpl implements ChildService {
     private void validateAge(int age) {
         if (age <= 0) {
             throw new RuntimeException("Возраст должен быть положительным!");
+        }
+    }
+
+    private void validateGender(String gender) {
+        if (!"М".equals(gender) && !"Ж".equals(gender)) {
+            throw new RuntimeException("Пол должен быть М или Ж!");
         }
     }
 

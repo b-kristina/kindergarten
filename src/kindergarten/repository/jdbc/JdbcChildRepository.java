@@ -33,7 +33,9 @@ public class JdbcChildRepository implements ChildRepository {
 
     @Override
     public Child save(Child entity) {
-        return (entity.getId() == 0) ? insert(entity) : updateEntity(entity);
+        return findById(entity.getId())
+                .map(existing -> updateEntity(entity))
+                .orElseGet(() -> insert(entity));
     }
 
     @Override
@@ -75,7 +77,7 @@ public class JdbcChildRepository implements ChildRepository {
 
     @Override
     public void update(Child entity) {
-        save(entity);
+        updateEntity(entity);
     }
 
     private Child updateEntity(Child child) {

@@ -3,9 +3,11 @@ package kindergarten.command;
 import kindergarten.model.Group;
 import kindergarten.service.ChildService;
 import kindergarten.service.GroupService;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 public class AddChildCommand implements Command {
     private final ChildService childService;
@@ -57,12 +59,11 @@ public class AddChildCommand implements Command {
         System.out.print("Введите ID группы: ");
         String input = scanner.nextLine().trim();
 
-        if (!isValidInteger(input)) {
+        Integer groupId = parseIntegerOrNull(input);
+        if (groupId == null) {
             System.out.println("Неверный формат ID!");
             return Optional.empty();
         }
-
-        int groupId = Integer.parseInt(input);
 
         if (!isGroupExists(groupId)) {
             return Optional.empty();
@@ -79,12 +80,11 @@ public class AddChildCommand implements Command {
         }
     }
 
-    private boolean isValidInteger(String input) {
+    private Integer parseIntegerOrNull(String input) {
         try {
-            Integer.parseInt(input);
-            return true;
+            return Integer.parseInt(input);
         } catch (NumberFormatException e) {
-            return false;
+            return null;
         }
     }
 
@@ -109,12 +109,13 @@ public class AddChildCommand implements Command {
             return null;
         }
 
-        Integer age = readAge();
-        if (age == null) {
+        try {
+            Integer age = readAge();
+            return new ChildInputData(fullName, gender, age);
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.getMessage());
             return null;
         }
-
-        return new ChildInputData(fullName, gender, age);
     }
 
     private String readFullName() {
@@ -130,44 +131,38 @@ public class AddChildCommand implements Command {
 
     private String readGender() {
         System.out.println("Выберите пол:");
-        System.out.println("  М — мужской");
-        System.out.println("  Ж — женский");
+        for (GenderOption option : GenderOption.values()) {
+            System.out.println("  " + option.getLabel() + " — " + option.getDescription());
+        }
 
-        boolean validInput = false;
-        String gender = null;
-
-        do {
-            System.out.print("Ваш выбор (М или Ж): ");
+        while (true) {
+            System.out.print("Ваш выбор (" + GenderOption.allowedChoicesDescription() + "): ");
             String choice = scanner.nextLine().trim().toUpperCase();
 
-            if ("М".equals(choice) || "M".equals(choice)) {
-                gender = "М";
-                validInput = true;
-            } else if ("Ж".equals(choice) || "F".equals(choice)) {
-                gender = "Ж";
-                validInput = true;
-            } else {
-                System.out.println("Неверный выбор. Введите М или Ж.");
+            GenderOption genderOption = GenderOption.fromChoice(choice);
+            if (genderOption != null) {
+                return genderOption.getLabel();
             }
-        } while (!validInput);
 
-        return gender;
+            System.out.println("Неверный выбор. Введите " + GenderOption.allowedChoicesDescription() + ".");
+        }
     }
 
     private Integer readAge() {
         System.out.print("Возраст: ");
-        String input = scanner.nextLine().trim();
+        Integer age = parseIntegerOrNull(scanner.nextLine().trim());
 
-        if (!isValidInteger(input)) {
+        if (age == null) {
             System.out.println("Неверный формат возраста!");
             return null;
         }
 
-        return Integer.parseInt(input);
+        return age;
     }
 
     private void saveChild(ChildInputData inputData, Integer groupId) {
         try {
+            childService.validateChildInput(inputData.fullName, inputData.gender, inputData.age, groupId);
             childService.createChild(inputData.fullName, inputData.gender, inputData.age, groupId);
             System.out.println("Ребенок добавлен!");
         } catch (RuntimeException e) {
@@ -184,6 +179,59 @@ public class AddChildCommand implements Command {
             this.fullName = fullName;
             this.gender = gender;
             this.age = age;
+        }
+    }
+
+    private enum GenderOption {
+        MALE("М", "мужской", "M"),
+        FEMALE("Ж", "женский", "F");
+
+        private final String label;
+        private final String description;
+        private final String[] aliases;
+
+        GenderOption(String label, String description, String... aliases) {
+            this.label = label;
+            this.description = description;
+            this.aliases = aliases;
+        }
+
+        private String getLabel() {
+            return label;
+        }
+
+        private String getDescription() {
+            return description;
+        }
+
+        private boolean matches(String choice) {
+            if (label.equals(choice)) {
+                return true;
+            }
+
+            for (String alias : aliases) {
+                if (alias.equals(choice)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static GenderOption fromChoice(String choice) {
+            for (GenderOption option : values()) {
+                if (option.matches(choice)) {
+                    return option;
+                }
+            }
+
+            return null;
+        }
+
+        private static String allowedChoicesDescription() {
+            return Arrays.stream(values())
+                    .map(GenderOption::getLabel)
+                    .collect(Collectors.joining(" или "));
         }
     }
 }
