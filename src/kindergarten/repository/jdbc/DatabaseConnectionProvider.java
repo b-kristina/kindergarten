@@ -13,6 +13,11 @@ public class DatabaseConnectionProvider {
 
     public DatabaseConnectionProvider(DatabaseConfig config) {
         this.config = Objects.requireNonNull(config, "DatabaseConfig cannot be null");
+        try {
+            Class.forName("org.postgresql.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException("PostgreSQL driver is not available", e);
+        }
     }
 
     public Connection getConnection() throws SQLException {
